@@ -62,7 +62,7 @@ jobs:
 
       - name: Install sbom
         run: | 
-           wget https://github.com/interlynk-io/sbomqs/releases/latest/download/sbomqs_${VERSION}_amd64.deb
+           go install github.com/interlynk-io/sbomqs@latest
            sudo dpkg -i sbomqs_*.deb
            sudo apt-get install -f
 
