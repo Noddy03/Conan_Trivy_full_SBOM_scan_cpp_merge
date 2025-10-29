@@ -149,7 +149,7 @@ jobs:
             -v $PWD/sbom-output:/sbom-output \
             ghcr.io/interlynk-io/sbomqs:latest compliance \
             --ntia -j /sbom-output/merged-sbom.json \
-            -o /sbom-output/compliance.json
+            -output /sbom-output/compliance.json
 
       - name: Score SBOM
         run: |
@@ -157,7 +157,7 @@ jobs:
             -v $PWD/sbom-output:/sbom-output \
             ghcr.io/interlynk-io/sbomqs:latest score \
             -j /sbom-output/merged-sbom.json \
-            -o /sbom-output/score_evaluation.json
+            -output /sbom-output/score_evaluation.json
 
       # -----------------------------------------------------
       # Upload Artifacts
