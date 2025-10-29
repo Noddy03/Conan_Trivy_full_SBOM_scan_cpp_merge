@@ -63,8 +63,7 @@ jobs:
       - name: Install sbom
         run: | 
            go install github.com/interlynk-io/sbomqs@latest
-           sudo dpkg -i sbomqs_*.deb
-           sudo apt-get install -f
+        
 
       # Generate Conan lockfile
       - name: Generate Conan lockfile
