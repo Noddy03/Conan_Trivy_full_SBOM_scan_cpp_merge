@@ -27,7 +27,9 @@ jobs:
       actions: read
 
     steps:
+      # -----------------------------------------------------
       # Setup base environment
+      # -----------------------------------------------------
       - name: Setup Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -38,7 +40,14 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # -----------------------------------------------------
       # Checkout both repositories
+      # -----------------------------------------------------
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
@@ -53,63 +62,68 @@ jobs:
           ref: ${{ inputs.conan_branch }}
           path: conan-src
 
-      # Install Conan
-      - name: Install Conan
+      # -----------------------------------------------------
+      # Install Conan and sbomqs
+      # -----------------------------------------------------
+      - name: Install Conan and sbomqs
         run: |
           python -m pip install --upgrade pip
           pip install conan
           conan profile detect --force
 
-      - name: Install sbom
-        run: | 
-           go install github.com/interlynk-io/sbomqs@latest
-        
+          # Install sbomqs (Interlynk)
+          go install github.com/interlynk-io/sbomqs@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
 
+      # -----------------------------------------------------
       # Generate Conan lockfile
+      # -----------------------------------------------------
       - name: Generate Conan lockfile
-        run: |
-          conan lock create conanfile.py --lockfile-out=conan.lock
+        run: conan lock create conanfile.py --lockfile-out=conan.lock
         working-directory: conan-src
 
-      # Copy lockfile to source directory for scanning
-      - name: Copy Conan lockfile
+      - name: Copy Conan lockfile to source directory
         run: cp conan-src/conan.lock project-src/conan.lock
 
+      # -----------------------------------------------------
       # Setup Trivy
+      # -----------------------------------------------------
       - name: Setup Trivy
         uses: aquasecurity/setup-trivy@v0.2.3
 
-      # Generate SBOM for Source Repo (C++)
+      # -----------------------------------------------------
+      # Generate SBOMs
+      # -----------------------------------------------------
       - name: Generate SBOM for source repository (C++)
         run: |
           mkdir -p sbom-output
           trivy fs ./project-src \
             --scanners vuln,license,secret \
             --include-non-failures \
-            --file-patterns 'fs:.*\.cpp$,fs:.*\.h$,fs:.*\.hpp$,fs:conan\.lock$' \
             --format cyclonedx \
             -o sbom-output/sbom-source.json
 
-      # Generate SBOM for Conan Repo
       - name: Generate SBOM for Conan repository
         run: |
           trivy fs ./conan-src \
             --scanners vuln,license,secret \
             --include-non-failures \
-            --file-patterns 'fs:.*\.py$,fs:conan\.lock$' \
             --format cyclonedx \
             -o sbom-output/sbom-conan.json
 
+      # -----------------------------------------------------
       # Merge SBOMs
+      # -----------------------------------------------------
       - name: Merge SBOMs
         run: |
           cat > merge_sbom.py <<'EOF'
           import json, sys
-          merged = {"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [], "metadata": {}}
-          for p in sys.argv[1:]:
-              with open(p) as f:
+          merged = {"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [], "metadata": {"tools": [{"vendor": "GitHub Actions", "name": "Trivy"}]}}
+          for path in sys.argv[1:]:
+              with open(path) as f:
                   sbom = json.load(f)
                   merged["components"].extend(sbom.get("components", []))
+          # Deduplicate components by name/version
           unique = {(c.get("name"), c.get("version")): c for c in merged["components"]}
           merged["components"] = list(unique.values())
           with open("sbom-output/merged-sbom.json", "w") as f:
@@ -117,34 +131,37 @@ jobs:
           EOF
           python merge_sbom.py sbom-output/sbom-source.json sbom-output/sbom-conan.json
 
+      # -----------------------------------------------------
       # Sanitize artifact name
+      # -----------------------------------------------------
       - name: Sanitize artifact name
         id: sanitize
         run: |
           SAFE_NAME=$(echo "${{ inputs.src_repository }}" | tr '/' '_')
           echo "name=$SAFE_NAME" >> $GITHUB_OUTPUT
-          
+
+      # -----------------------------------------------------
+      # SBOM Compliance & Score (Interlynk sbomqs)
+      # -----------------------------------------------------
       - name: Compliance SBOM
         run: |
-         docker run --rm \
-          -v /tmp:/tmp \
-          ghcr.io/interlynk-io/sbomqs compliance \
-          --ntia \
-          -j \
-          /sbom-output/merged-sbom.json > 
-          -o /sbom-output/compliance.json
+          docker run --rm \
+            -v $PWD/sbom-output:/sbom-output \
+            ghcr.io/interlynk-io/sbomqs:latest compliance \
+            --ntia -j /sbom-output/merged-sbom.json \
+            -o /sbom-output/compliance.json
 
       - name: Score SBOM
         run: |
           docker run --rm \
-          -v /tmp:/tmp \
-          ghcr.io/interlynk-io/sbomqs score \
-          -j \
-          /sbom-output/merged-sbom.json > 
-          -o /sbom-output/score_evaluation.json
+            -v $PWD/sbom-output:/sbom-output \
+            ghcr.io/interlynk-io/sbomqs:latest score \
+            -j /sbom-output/merged-sbom.json \
+            -o /sbom-output/score_evaluation.json
 
-
-      # Upload merged SBOM
+      # -----------------------------------------------------
+      # Upload Artifacts
+      # -----------------------------------------------------
       - name: Upload merged SBOM
         uses: actions/upload-artifact@v4
         with:
@@ -152,3 +169,9 @@ jobs:
           path: sbom-output/merged-sbom.json
           if-no-files-found: warn
 
+      - name: Upload SBOM reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports-${{ steps.sanitize.outputs.name }}
+          path: sbom-output/*.json
+          if-no-files-found: warn
