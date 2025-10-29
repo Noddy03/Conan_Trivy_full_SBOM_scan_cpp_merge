@@ -118,6 +118,24 @@ jobs:
         run: |
           SAFE_NAME=$(echo "${{ inputs.src_repository }}" | tr '/' '_')
           echo "name=$SAFE_NAME" >> $GITHUB_OUTPUT
+          
+      - name: Compliance SBOM
+        run: |
+         docker run --rm \
+          -v /tmp:/tmp \
+          ghcr.io/interlynk-io/sbomqs merged-sbom \
+          --ntia \
+          -j \
+          /tmp/bom.json > /tmp/merged-sbom.json
+
+      - name: Score SBOM
+        run: |
+          docker run --rm \
+          -v /tmp:/tmp \
+          ghcr.io/interlynk-io/sbomqs score \
+          -j \
+          /tmp/bom.json > /tmp/score_evaluation.json
+
 
       # Upload merged SBOM
       - name: Upload merged SBOM
