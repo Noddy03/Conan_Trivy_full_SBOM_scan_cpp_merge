@@ -131,7 +131,7 @@ jobs:
           ghcr.io/interlynk-io/sbomqs compliance \
           --ntia \
           -j \
-          /tmp/bom.json > /tmp/compliance.json
+          /tmp/merged-sbom.json > /tmp/compliance.json
 
       - name: Score SBOM
         run: |
