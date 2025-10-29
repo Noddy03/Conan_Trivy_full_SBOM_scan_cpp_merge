@@ -146,18 +146,17 @@ jobs:
       - name: Compliance SBOM
         run: |
           docker run --rm \
-            -v $PWD/sbom-output:/sbom-output \
-            ghcr.io/interlynk-io/sbomqs:latest compliance \
-            --ntia -j /sbom-output/merged-sbom.json \
-            -output /sbom-output/compliance.json
+          -v $PWD/sbom-output:/sbom-output \
+          ghcr.io/interlynk-io/sbomqs:latest compliance \
+          --ntia /sbom-output/merged-sbom.json > sbom-output/compliance.json
 
       - name: Score SBOM
         run: |
           docker run --rm \
-            -v $PWD/sbom-output:/sbom-output \
-            ghcr.io/interlynk-io/sbomqs:latest score \
-            -j /sbom-output/merged-sbom.json \
-            -output /sbom-output/score_evaluation.json
+          -v $PWD/sbom-output:/sbom-output \
+          ghcr.io/interlynk-io/sbomqs:latest score \
+          /sbom-output/merged-sbom.json --json > sbom-output/score_evaluation.json
+
 
       # -----------------------------------------------------
       # Upload Artifacts
