@@ -131,7 +131,8 @@ jobs:
           ghcr.io/interlynk-io/sbomqs compliance \
           --ntia \
           -j \
-          /sbom-output/merged-sbom.json > /sbom-output/compliance.json
+          /sbom-output/merged-sbom.json > 
+          -o /sbom-output/compliance.json
 
       - name: Score SBOM
         run: |
@@ -139,7 +140,8 @@ jobs:
           -v /tmp:/tmp \
           ghcr.io/interlynk-io/sbomqs score \
           -j \
-          /sbom-output/merged-sbom.json > /sbom-output/score_evaluation.json
+          /sbom-output/merged-sbom.json > 
+          -o /sbom-output/score_evaluation.json
 
 
       # Upload merged SBOM
