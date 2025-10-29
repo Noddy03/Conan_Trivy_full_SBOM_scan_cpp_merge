@@ -60,6 +60,12 @@ jobs:
           pip install conan
           conan profile detect --force
 
+      - name: Install sbom
+         run:| 
+           wget https://github.com/interlynk-io/sbomqs/releases/latest/download/sbomqs_${VERSION}_amd64.deb
+           sudo dpkg -i sbomqs_*.deb
+           sudo apt-get install -f
+
       # Generate Conan lockfile
       - name: Generate Conan lockfile
         run: |
@@ -123,10 +129,10 @@ jobs:
         run: |
          docker run --rm \
           -v /tmp:/tmp \
-          ghcr.io/interlynk-io/sbomqs merged-sbom \
+          ghcr.io/interlynk-io/sbomqs compliance \
           --ntia \
           -j \
-          /tmp/bom.json > /tmp/merged-sbom.json
+          /tmp/bom.json > /tmp/compliance.json
 
       - name: Score SBOM
         run: |
