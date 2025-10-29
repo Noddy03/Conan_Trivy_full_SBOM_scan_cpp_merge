@@ -61,7 +61,7 @@ jobs:
           conan profile detect --force
 
       - name: Install sbom
-         run:| 
+        run: | 
            wget https://github.com/interlynk-io/sbomqs/releases/latest/download/sbomqs_${VERSION}_amd64.deb
            sudo dpkg -i sbomqs_*.deb
            sudo apt-get install -f
