@@ -28,19 +28,28 @@ jobs:
 
     steps:
       # -----------------------------------------------------
+      # Timestamp utility
+      # -----------------------------------------------------
+      - name: Record workflow start time
+        run: echo "🕒 Workflow started at: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+      # -----------------------------------------------------
       # Setup base environment
       # -----------------------------------------------------
       - name: Setup Python 3.10
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Python 3.10..."
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Setup Node.js 20
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Node.js 20..."
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
       - name: Setup Go 1.22
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Go 1.22..."
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
@@ -49,6 +58,7 @@ jobs:
       # Checkout both repositories
       # -----------------------------------------------------
       - name: Checkout source repository
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Checking out source repository..."
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.src_repository }}
@@ -56,6 +66,7 @@ jobs:
           path: project-src
 
       - name: Checkout Conan repository
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Checking out Conan repository..."
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.conan_repository }}
@@ -67,28 +78,35 @@ jobs:
       # -----------------------------------------------------
       - name: Install Conan and sbomqs
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Installing Conan and sbomqs..."
           python -m pip install --upgrade pip
           pip install conan
           conan profile detect --force
 
-          # Install sbomqs (Interlynk)
           go install github.com/interlynk-io/sbomqs@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Conan and sbomqs installation complete."
 
       # -----------------------------------------------------
       # Generate Conan lockfile
       # -----------------------------------------------------
       - name: Generate Conan lockfile
-        run: conan lock create conanfile.py --lockfile-out=conan.lock
+        run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Generating Conan lockfile..."
+          conan lock create conanfile.py --lockfile-out=conan.lock
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Conan lockfile generated."
         working-directory: conan-src
 
       - name: Copy Conan lockfile to source directory
-        run: cp conan-src/conan.lock project-src/conan.lock
+        run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Copying lockfile to source directory..."
+          cp conan-src/conan.lock project-src/conan.lock
 
       # -----------------------------------------------------
       # Setup Trivy
       # -----------------------------------------------------
       - name: Setup Trivy
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Trivy..."
         uses: aquasecurity/setup-trivy@v0.2.3
 
       # -----------------------------------------------------
@@ -96,26 +114,31 @@ jobs:
       # -----------------------------------------------------
       - name: Generate SBOM for source repository (C++)
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Generating SBOM for source repository..."
           mkdir -p sbom-output
           trivy fs ./project-src \
             --scanners vuln,license,secret \
             --include-non-failures \
             --format cyclonedx \
             -o sbom-output/sbom-source.json
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] SBOM for source repository generated."
 
       - name: Generate SBOM for Conan repository
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Generating SBOM for Conan repository..."
           trivy fs ./conan-src \
             --scanners vuln,license,secret \
             --include-non-failures \
             --format cyclonedx \
             -o sbom-output/sbom-conan.json
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] SBOM for Conan repository generated."
 
       # -----------------------------------------------------
       # Merge SBOMs
       # -----------------------------------------------------
       - name: Merge SBOMs
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Merging SBOMs..."
           cat > merge_sbom.py <<'EOF'
           import json, sys
           merged = {"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [], "metadata": {"tools": [{"vendor": "GitHub Actions", "name": "Trivy"}]}}
@@ -123,13 +146,13 @@ jobs:
               with open(path) as f:
                   sbom = json.load(f)
                   merged["components"].extend(sbom.get("components", []))
-          # Deduplicate components by name/version
           unique = {(c.get("name"), c.get("version")): c for c in merged["components"]}
           merged["components"] = list(unique.values())
           with open("sbom-output/merged-sbom.json", "w") as f:
               json.dump(merged, f, indent=2)
           EOF
           python merge_sbom.py sbom-output/sbom-source.json sbom-output/sbom-conan.json
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] SBOM merge complete."
 
       # -----------------------------------------------------
       # Sanitize artifact name
@@ -137,6 +160,7 @@ jobs:
       - name: Sanitize artifact name
         id: sanitize
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Sanitizing artifact name..."
           SAFE_NAME=$(echo "${{ inputs.src_repository }}" | tr '/' '_')
           echo "name=$SAFE_NAME" >> $GITHUB_OUTPUT
 
@@ -145,23 +169,27 @@ jobs:
       # -----------------------------------------------------
       - name: Compliance SBOM
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Running compliance analysis..."
           docker run --rm \
           -v $PWD/sbom-output:/sbom-output \
           ghcr.io/interlynk-io/sbomqs:latest compliance \
           --ntia /sbom-output/merged-sbom.json > sbom-output/compliance.json
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Compliance analysis complete."
 
       - name: Score SBOM
         run: |
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Scoring SBOM..."
           docker run --rm \
           -v $PWD/sbom-output:/sbom-output \
           ghcr.io/interlynk-io/sbomqs:latest score \
           /sbom-output/merged-sbom.json --json > sbom-output/score_evaluation.json
-
+          echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] SBOM scoring complete."
 
       # -----------------------------------------------------
       # Upload Artifacts
       # -----------------------------------------------------
       - name: Upload merged SBOM
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Uploading merged SBOM..."
         uses: actions/upload-artifact@v4
         with:
           name: merged-sbom-${{ steps.sanitize.outputs.name }}
@@ -169,8 +197,15 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload SBOM reports
+        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Uploading SBOM reports..."
         uses: actions/upload-artifact@v4
         with:
           name: sbom-reports-${{ steps.sanitize.outputs.name }}
           path: sbom-output/*.json
           if-no-files-found: warn
+
+      # -----------------------------------------------------
+      # Workflow end timestamp
+      # -----------------------------------------------------
+      - name: Record workflow end time
+        run: echo " Workflow completed at: $(date '+%Y-%m-%d %H:%M:%S %Z')"
