@@ -37,19 +37,16 @@ jobs:
       # Setup base environment
       # -----------------------------------------------------
       - name: Setup Python 3.10
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Python 3.10..."
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Setup Node.js 20
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Node.js 20..."
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
       - name: Setup Go 1.22
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Go 1.22..."
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
@@ -58,7 +55,6 @@ jobs:
       # Checkout both repositories
       # -----------------------------------------------------
       - name: Checkout source repository
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Checking out source repository..."
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.src_repository }}
@@ -66,7 +62,6 @@ jobs:
           path: project-src
 
       - name: Checkout Conan repository
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Checking out Conan repository..."
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.conan_repository }}
@@ -106,7 +101,6 @@ jobs:
       # Setup Trivy
       # -----------------------------------------------------
       - name: Setup Trivy
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Setting up Trivy..."
         uses: aquasecurity/setup-trivy@v0.2.3
 
       # -----------------------------------------------------
@@ -189,7 +183,6 @@ jobs:
       # Upload Artifacts
       # -----------------------------------------------------
       - name: Upload merged SBOM
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Uploading merged SBOM..."
         uses: actions/upload-artifact@v4
         with:
           name: merged-sbom-${{ steps.sanitize.outputs.name }}
@@ -197,7 +190,6 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload SBOM reports
-        run: echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Uploading SBOM reports..."
         uses: actions/upload-artifact@v4
         with:
           name: sbom-reports-${{ steps.sanitize.outputs.name }}
