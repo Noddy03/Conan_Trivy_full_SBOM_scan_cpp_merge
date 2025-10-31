@@ -31,7 +31,7 @@ jobs:
       # Timestamp utility
       # -----------------------------------------------------
       - name: Record workflow start time
-        run: echo "🕒 Workflow started at: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+        run: echo "🕒 Workflow started at:$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
       # -----------------------------------------------------
       # Setup base environment
@@ -208,4 +208,4 @@ jobs:
       # Workflow end timestamp
       # -----------------------------------------------------
       - name: Record workflow end time
-        run: echo " Workflow completed at: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+        run: echo " Workflow completed at:$(date '+%Y-%m-%d %H:%M:%S %Z')"
